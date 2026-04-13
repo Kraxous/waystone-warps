@@ -88,6 +88,7 @@ tasks.test {
 
 tasks.shadowJar {
     archiveClassifier = null
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
 
 tasks.register<Copy>("deploy") {
