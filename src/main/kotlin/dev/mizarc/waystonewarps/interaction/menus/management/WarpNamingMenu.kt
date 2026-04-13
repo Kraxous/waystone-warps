@@ -3,15 +3,16 @@ package dev.mizarc.waystonewarps.interaction.menus.management
 import dev.mizarc.waystonewarps.application.actions.world.CreateWarp
 import dev.mizarc.waystonewarps.application.results.CreateWarpResult
 import dev.mizarc.waystonewarps.infrastructure.mappers.toPosition3D
+import dev.mizarc.waystonewarps.interaction.input.AnvilInputService
 import dev.mizarc.waystonewarps.interaction.localization.LocalizationKeys
 import dev.mizarc.waystonewarps.interaction.localization.LocalizationProvider
 import dev.mizarc.waystonewarps.interaction.menus.Menu
 import dev.mizarc.waystonewarps.interaction.menus.MenuNavigator
-import dev.mizarc.waystonewarps.interaction.menus.common.TextInputMenu
 import dev.mizarc.waystonewarps.interaction.messaging.PrimaryColourPalette
 import dev.mizarc.waystonewarps.interaction.utils.PermissionHelper
 import net.kyori.adventure.text.Component
 import org.bukkit.Location
+import org.bukkit.Material
 import org.bukkit.Sound
 import org.bukkit.SoundCategory
 import org.bukkit.entity.Player
@@ -25,15 +26,16 @@ class WarpNamingMenu(
 ) : Menu, KoinComponent {
     private val createWarp: CreateWarp by inject()
     private val localizationProvider: LocalizationProvider by inject()
+    private val anvilInputService: AnvilInputService by inject()
 
     override fun open() {
-        TextInputMenu(
+        anvilInputService.prompt(
             player,
             localizationProvider.get(player.uniqueId, LocalizationKeys.MENU_WARP_NAMING_TITLE),
-            localizationProvider,
-            onSubmit = { name -> create(name) },
+            icon = Material.LODESTONE,
+            onInput = { name -> create(name) },
             onCancel = { player.sendActionBar(Component.text("Waystone creation cancelled.")) }
-        ).open()
+        )
     }
 
     private fun create(name: String) {

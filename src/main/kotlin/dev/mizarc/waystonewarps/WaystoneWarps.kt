@@ -83,6 +83,7 @@ import dev.mizarc.waystonewarps.infrastructure.services.scheduling.SchedulerServ
 import dev.mizarc.waystonewarps.interaction.commands.GiveWarpstoneCommand
 import dev.mizarc.waystonewarps.interaction.commands.InvalidsCommand
 import dev.mizarc.waystonewarps.interaction.commands.WarpCreateCommand
+import dev.mizarc.waystonewarps.interaction.input.AnvilInputService
 import dev.mizarc.waystonewarps.interaction.listeners.*
 import dev.mizarc.waystonewarps.interaction.localization.LocalizationProvider
 import net.milkbowl.vault.economy.Economy
@@ -140,6 +141,7 @@ class WaystoneWarps: JavaPlugin() {
     private lateinit var warpEventPublisher: WarpEventPublisher
     private lateinit var playerLocaleService: PlayerLocaleService
     private lateinit var localizationProvider: LocalizationProvider
+    private lateinit var anvilInputService: AnvilInputService
 
     override fun onEnable() {
         // Create plugin folder
@@ -271,6 +273,7 @@ class WaystoneWarps: JavaPlugin() {
         worldService = WorldServiceBukkit()
         warpEventPublisher = WarpEventPublisherBukkit()
         playerLocaleService = PlayerLocaleServicePaper()
+        anvilInputService = AnvilInputService(this)
         localizationProvider = PropertiesLocalizationProvider(configService, dataFolder, PlayerLocaleServicePaper())
     }
 
@@ -298,6 +301,7 @@ class WaystoneWarps: JavaPlugin() {
             single<ConfigService> { configService }
             single<TeleportationService> { teleportationService }
             single<WarpEventPublisher> { warpEventPublisher }
+            single<AnvilInputService> { anvilInputService }
         }
 
         val actions = module {
@@ -390,5 +394,6 @@ class WaystoneWarps: JavaPlugin() {
         server.pluginManager.registerEvents(TeleportZoneProtectionListener(), this)
         server.pluginManager.registerEvents(WarpItemListener(configService), this)
         server.pluginManager.registerEvents(WaystoneBaseInteractListener(), this)
+        server.pluginManager.registerEvents(anvilInputService, this)
     }
 }
