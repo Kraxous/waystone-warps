@@ -31,6 +31,8 @@ class WarpNamingMenu(
     private val createWarp: CreateWarp by inject()
     private val localizationProvider: LocalizationProvider by inject()
     private val anvilInputService: AnvilInputService by inject()
+    private var name = ""
+    private var isConfirming = false
 
     override fun open() {
         val lodestoneItem = ItemStack(Material.LODESTONE)
@@ -51,12 +53,20 @@ class WarpNamingMenu(
             title = localizationProvider.get(player.uniqueId, LocalizationKeys.MENU_WARP_NAMING_TITLE),
             inputItem = lodestoneItem,
             confirmItem = confirmItem,
-            onSubmit = { name -> create(name) },
-            onCancel = { player.sendActionBar(Component.text("Waystone creation cancelled.")) }
+            onInputChanged = { newName ->
+                if (!isConfirming) {
+                    name = newName
+                } else {
+                    isConfirming = false
+                }
+            },
+            onSubmit = { create(lodestoneItem) },
+            onCancel = { player.sendActionBar(Component.text("Waystone creation cancelled.")) },
+            onErrorCleared = { isConfirming = true }
         )
     }
 
-    private fun create(name: String): AnvilInputResult {
+    private fun create(lodestoneItem: ItemStack): AnvilInputResult {
         val belowLocation = location.clone().subtract(0.0, 1.0, 0.0)
         return when (val result = createWarp.execute(
             player.uniqueId,
@@ -73,11 +83,15 @@ class WarpNamingMenu(
             }
             is CreateWarpResult.LimitExceeded -> error(LocalizationKeys.CONDITION_NAMING_LIMIT)
             is CreateWarpResult.NameAlreadyExists -> error(LocalizationKeys.CONDITION_NAMING_EXISTING)
-            is CreateWarpResult.NameCannotBeBlank -> error(LocalizationKeys.CONDITION_NAMING_BLANK)
+            is CreateWarpResult.NameCannotBeBlank -> {
+                lodestoneItem.name("")
+                error(LocalizationKeys.CONDITION_NAMING_BLANK)
+            }
         }
     }
 
     private fun error(messageKey: String): AnvilInputResult {
+        isConfirming = true
         return AnvilInputResult.Error(
             ItemStack(Material.PAPER).name(
                 localizationProvider.get(player.uniqueId, messageKey),

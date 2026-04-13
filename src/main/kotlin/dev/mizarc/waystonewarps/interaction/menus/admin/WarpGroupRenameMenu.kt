@@ -25,6 +25,8 @@ class WarpGroupRenameMenu(
 ) : Menu, KoinComponent {
     private val renameWarpGroup: RenameWarpGroup by inject()
     private val anvilInputService: AnvilInputService by inject()
+    private var newName = group.name
+    private var isConfirming = false
 
     override fun open() {
         val bookItem = ItemStack(Material.BOOKSHELF).name(group.name)
@@ -37,24 +39,39 @@ class WarpGroupRenameMenu(
             title = localizationProvider.get(player.uniqueId, LocalizationKeys.MENU_WARP_GROUP_RENAME_TITLE),
             inputItem = bookItem,
             confirmItem = confirmItem,
-            onSubmit = { name -> rename(name) },
-            onCancel = { menuNavigator.goBack() }
+            onInputChanged = { input ->
+                if (!isConfirming) {
+                    newName = input
+                } else {
+                    isConfirming = false
+                }
+            },
+            onSubmit = { rename() },
+            onCancel = { menuNavigator.goBack() },
+            onErrorCleared = { isConfirming = true }
         )
     }
 
-    private fun rename(name: String): AnvilInputResult {
-        return when (renameWarpGroup.execute(group.id, name)) {
+    private fun rename(): AnvilInputResult {
+        return when (renameWarpGroup.execute(group.id, newName)) {
             RenameWarpGroupResult.SUCCESS -> {
                 menuNavigator.goBack()
                 AnvilInputResult.Close
             }
-            RenameWarpGroupResult.NAME_BLANK -> AnvilInputResult.Close
-            RenameWarpGroupResult.NOT_FOUND -> AnvilInputResult.Close
+            RenameWarpGroupResult.NAME_BLANK -> {
+                menuNavigator.goBack()
+                AnvilInputResult.Close
+            }
+            RenameWarpGroupResult.NOT_FOUND -> {
+                menuNavigator.goBack()
+                AnvilInputResult.Close
+            }
             RenameWarpGroupResult.NAME_TAKEN -> error()
         }
     }
 
     private fun error(): AnvilInputResult {
+        isConfirming = true
         return AnvilInputResult.Error(
             ItemStack(Material.PAPER).name(
                 localizationProvider.get(player.uniqueId, LocalizationKeys.MENU_WARP_GROUP_RENAME_NAME_TAKEN),

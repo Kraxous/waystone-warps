@@ -30,6 +30,7 @@ class AnvilInputService(private val plugin: JavaPlugin) : Listener {
         val onInputChanged: (String) -> Unit,
         val onSubmit: (String) -> AnvilInputResult,
         val onCancel: () -> Unit,
+        val onErrorCleared: () -> Unit,
         var handlingSubmit: Boolean = false,
         var submitted: Boolean = false
     )
@@ -44,14 +45,15 @@ class AnvilInputService(private val plugin: JavaPlugin) : Listener {
         errorItem: ItemStack? = null,
         onInputChanged: (String) -> Unit = {},
         onSubmit: (String) -> AnvilInputResult,
-        onCancel: () -> Unit = {}
+        onCancel: () -> Unit = {},
+        onErrorCleared: () -> Unit = {}
     ) {
         val inventory = Bukkit.createInventory(player, InventoryType.ANVIL, Component.text(title))
         inventory.setItem(0, inputItem)
         inventory.setItem(1, errorItem)
         inventory.setItem(2, confirmItem)
 
-        prompts[player.uniqueId] = Prompt(inventory, confirmItem, onInputChanged, onSubmit, onCancel)
+        prompts[player.uniqueId] = Prompt(inventory, confirmItem, onInputChanged, onSubmit, onCancel, onErrorCleared)
         player.openInventory(inventory)
     }
 
@@ -80,6 +82,7 @@ class AnvilInputService(private val plugin: JavaPlugin) : Listener {
     fun onPrepareAnvil(event: PrepareAnvilEvent) {
         val player = event.view.player as? Player ?: return
         val prompt = prompts[player.uniqueId] ?: return
+        if (event.inventory != prompt.inventory) return
         val renameText = event.view.renameText.orEmpty()
 
         prompt.onInputChanged(renameText)
@@ -93,15 +96,17 @@ class AnvilInputService(private val plugin: JavaPlugin) : Listener {
         val player = event.whoClicked as? Player ?: return
         val prompt = prompts[player.uniqueId] ?: return
         if (event.view.type != InventoryType.ANVIL) return
+        if (event.inventory != prompt.inventory) return
 
         event.isCancelled = true
         if (event.rawSlot == 1) {
             event.inventory.setItem(1, null)
+            prompt.onErrorCleared()
             return
         }
         if (event.rawSlot != 2) return
 
-        val input = (event.view as? AnvilView)?.renameText?.trim().orEmpty()
+        val input = (event.view as? AnvilView)?.renameText.orEmpty()
         prompt.handlingSubmit = true
         val result = prompt.onSubmit(input)
         prompt.handlingSubmit = false

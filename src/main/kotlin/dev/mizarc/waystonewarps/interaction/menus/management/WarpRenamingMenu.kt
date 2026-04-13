@@ -13,7 +13,6 @@ import dev.mizarc.waystonewarps.interaction.messaging.PrimaryColourPalette
 import dev.mizarc.waystonewarps.interaction.utils.PermissionHelper
 import dev.mizarc.waystonewarps.interaction.utils.lore
 import dev.mizarc.waystonewarps.interaction.utils.name
-import net.kyori.adventure.text.Component
 import org.bukkit.Material
 import org.bukkit.entity.Player
 import org.bukkit.inventory.ItemStack
@@ -28,6 +27,8 @@ class WarpRenamingMenu(
 ) : Menu, KoinComponent {
     private val updateWarpName: UpdateWarpName by inject()
     private val anvilInputService: AnvilInputService by inject()
+    private var name = ""
+    private var isConfirming = false
 
     override fun open() {
         if (!PermissionHelper.canRename(player, warp.playerId)) {
@@ -48,12 +49,23 @@ class WarpRenamingMenu(
             title = localizationProvider.get(player.uniqueId, LocalizationKeys.MENU_WARP_RENAMING_TITLE),
             inputItem = lodestoneItem,
             confirmItem = confirmItem,
-            onSubmit = { name -> rename(name) },
-            onCancel = { menuNavigator.goBack() }
+            onInputChanged = { newName ->
+                if (!isConfirming) {
+                    name = newName
+                } else {
+                    isConfirming = false
+                }
+            },
+            onSubmit = { rename(lodestoneItem) },
+            onCancel = { menuNavigator.goBack() },
+            onErrorCleared = {
+                lodestoneItem.name(name)
+                isConfirming = true
+            }
         )
     }
 
-    private fun rename(name: String): AnvilInputResult {
+    private fun rename(lodestoneItem: ItemStack): AnvilInputResult {
         if (name == warp.name) {
             menuNavigator.goBack()
             return AnvilInputResult.Close
@@ -65,16 +77,19 @@ class WarpRenamingMenu(
                 AnvilInputResult.Close
             }
             UpdateWarpNameResult.WARP_NOT_FOUND -> {
-                player.sendMessage(Component.text(localizationProvider.get(player.uniqueId, LocalizationKeys.CONDITION_NAMING_NOT_FOUND))
-                    .color(PrimaryColourPalette.FAILED.color))
+                lodestoneItem.name(name)
+                error(LocalizationKeys.CONDITION_NAMING_NOT_FOUND)
+            }
+            UpdateWarpNameResult.NAME_ALREADY_TAKEN -> {
+                lodestoneItem.name(name)
+                error(LocalizationKeys.CONDITION_NAMING_EXISTING, name)
+            }
+            UpdateWarpNameResult.NAME_BLANK -> {
                 menuNavigator.goBack()
                 AnvilInputResult.Close
             }
-            UpdateWarpNameResult.NAME_ALREADY_TAKEN -> error(LocalizationKeys.CONDITION_NAMING_EXISTING, name)
-            UpdateWarpNameResult.NAME_BLANK -> AnvilInputResult.Close
             UpdateWarpNameResult.NOT_AUTHORIZED -> {
-                player.sendMessage(Component.text(localizationProvider.get(player.uniqueId, LocalizationKeys.CONDITION_NAMING_NO_PERMISSION))
-                    .color(PrimaryColourPalette.FAILED.color))
+                player.sendMessage("§c${localizationProvider.get(player.uniqueId, LocalizationKeys.CONDITION_NAMING_NO_PERMISSION)}")
                 menuNavigator.goBack()
                 AnvilInputResult.Close
             }
@@ -82,6 +97,7 @@ class WarpRenamingMenu(
     }
 
     private fun error(messageKey: String, vararg args: Any): AnvilInputResult {
+        isConfirming = true
         return AnvilInputResult.Error(
             ItemStack(Material.PAPER).name(
                 localizationProvider.get(player.uniqueId, messageKey, *args),

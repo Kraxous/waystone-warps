@@ -23,6 +23,8 @@ class WarpGroupCreateMenu(
 ) : Menu, KoinComponent {
     private val createWarpGroup: CreateWarpGroup by inject()
     private val anvilInputService: AnvilInputService by inject()
+    private var groupName = ""
+    private var isConfirming = false
 
     override fun open() {
         val bookItem = ItemStack(Material.BOOKSHELF)
@@ -36,23 +38,35 @@ class WarpGroupCreateMenu(
             title = localizationProvider.get(player.uniqueId, LocalizationKeys.MENU_WARP_GROUP_CREATE_TITLE),
             inputItem = bookItem,
             confirmItem = confirmItem,
-            onSubmit = { name -> create(name) },
-            onCancel = { menuNavigator.goBack() }
+            onInputChanged = { newName ->
+                if (!isConfirming) {
+                    groupName = newName
+                } else {
+                    isConfirming = false
+                }
+            },
+            onSubmit = { create() },
+            onCancel = { menuNavigator.goBack() },
+            onErrorCleared = { isConfirming = true }
         )
     }
 
-    private fun create(name: String): AnvilInputResult {
-        return when (createWarpGroup.execute(player.uniqueId, name)) {
+    private fun create(): AnvilInputResult {
+        return when (createWarpGroup.execute(player.uniqueId, groupName)) {
             CreateWarpGroupResult.SUCCESS -> {
                 menuNavigator.goBack()
                 AnvilInputResult.Close
             }
-            CreateWarpGroupResult.NAME_BLANK -> AnvilInputResult.Close
+            CreateWarpGroupResult.NAME_BLANK -> {
+                menuNavigator.goBack()
+                AnvilInputResult.Close
+            }
             CreateWarpGroupResult.NAME_TAKEN -> error()
         }
     }
 
     private fun error(): AnvilInputResult {
+        isConfirming = true
         return AnvilInputResult.Error(
             ItemStack(Material.PAPER).name(
                 localizationProvider.get(player.uniqueId, LocalizationKeys.MENU_WARP_GROUP_RENAME_NAME_TAKEN),
