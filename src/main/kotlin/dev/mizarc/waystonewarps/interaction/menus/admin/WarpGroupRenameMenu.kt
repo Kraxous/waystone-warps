@@ -3,11 +3,11 @@ package dev.mizarc.waystonewarps.interaction.menus.admin
 import dev.mizarc.waystonewarps.application.actions.groups.RenameWarpGroup
 import dev.mizarc.waystonewarps.application.actions.groups.RenameWarpGroupResult
 import dev.mizarc.waystonewarps.domain.warps.WarpGroup
-import dev.mizarc.waystonewarps.interaction.input.ChatInputService
 import dev.mizarc.waystonewarps.interaction.localization.LocalizationKeys
 import dev.mizarc.waystonewarps.interaction.localization.LocalizationProvider
 import dev.mizarc.waystonewarps.interaction.menus.Menu
 import dev.mizarc.waystonewarps.interaction.menus.MenuNavigator
+import dev.mizarc.waystonewarps.interaction.menus.common.TextInputMenu
 import dev.mizarc.waystonewarps.interaction.messaging.PrimaryColourPalette
 import net.kyori.adventure.text.Component
 import org.bukkit.entity.Player
@@ -21,15 +21,16 @@ class WarpGroupRenameMenu(
     private val localizationProvider: LocalizationProvider
 ) : Menu, KoinComponent {
     private val renameWarpGroup: RenameWarpGroup by inject()
-    private val chatInputService: ChatInputService by inject()
 
     override fun open() {
-        chatInputService.prompt(
+        TextInputMenu(
             player,
             localizationProvider.get(player.uniqueId, LocalizationKeys.MENU_WARP_GROUP_RENAME_TITLE),
-            onInput = { name -> rename(name) },
+            localizationProvider,
+            initialValue = group.name,
+            onSubmit = { name -> rename(name) },
             onCancel = { menuNavigator.goBack() }
-        )
+        ).open()
     }
 
     private fun rename(name: String) {

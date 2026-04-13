@@ -3,11 +3,11 @@ package dev.mizarc.waystonewarps.interaction.menus.management
 import dev.mizarc.waystonewarps.application.actions.management.UpdateWarpName
 import dev.mizarc.waystonewarps.application.results.UpdateWarpNameResult
 import dev.mizarc.waystonewarps.domain.warps.Warp
-import dev.mizarc.waystonewarps.interaction.input.ChatInputService
 import dev.mizarc.waystonewarps.interaction.localization.LocalizationKeys
 import dev.mizarc.waystonewarps.interaction.localization.LocalizationProvider
 import dev.mizarc.waystonewarps.interaction.menus.Menu
 import dev.mizarc.waystonewarps.interaction.menus.MenuNavigator
+import dev.mizarc.waystonewarps.interaction.menus.common.TextInputMenu
 import dev.mizarc.waystonewarps.interaction.messaging.PrimaryColourPalette
 import dev.mizarc.waystonewarps.interaction.utils.PermissionHelper
 import net.kyori.adventure.text.Component
@@ -22,7 +22,6 @@ class WarpRenamingMenu(
     private val localizationProvider: LocalizationProvider
 ) : Menu, KoinComponent {
     private val updateWarpName: UpdateWarpName by inject()
-    private val chatInputService: ChatInputService by inject()
 
     override fun open() {
         if (!PermissionHelper.canRename(player, warp.playerId)) {
@@ -31,12 +30,14 @@ class WarpRenamingMenu(
             return
         }
 
-        chatInputService.prompt(
+        TextInputMenu(
             player,
             localizationProvider.get(player.uniqueId, LocalizationKeys.MENU_WARP_RENAMING_TITLE),
-            onInput = { name -> rename(name) },
+            localizationProvider,
+            initialValue = warp.name,
+            onSubmit = { name -> rename(name) },
             onCancel = { menuNavigator.goBack() }
-        )
+        ).open()
     }
 
     private fun rename(name: String) {

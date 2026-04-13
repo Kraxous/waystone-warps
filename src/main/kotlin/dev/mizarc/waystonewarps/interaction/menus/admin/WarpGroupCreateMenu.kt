@@ -2,11 +2,11 @@ package dev.mizarc.waystonewarps.interaction.menus.admin
 
 import dev.mizarc.waystonewarps.application.actions.groups.CreateWarpGroup
 import dev.mizarc.waystonewarps.application.actions.groups.CreateWarpGroupResult
-import dev.mizarc.waystonewarps.interaction.input.ChatInputService
 import dev.mizarc.waystonewarps.interaction.localization.LocalizationKeys
 import dev.mizarc.waystonewarps.interaction.localization.LocalizationProvider
 import dev.mizarc.waystonewarps.interaction.menus.Menu
 import dev.mizarc.waystonewarps.interaction.menus.MenuNavigator
+import dev.mizarc.waystonewarps.interaction.menus.common.TextInputMenu
 import dev.mizarc.waystonewarps.interaction.messaging.PrimaryColourPalette
 import net.kyori.adventure.text.Component
 import org.bukkit.entity.Player
@@ -19,15 +19,15 @@ class WarpGroupCreateMenu(
     private val localizationProvider: LocalizationProvider
 ) : Menu, KoinComponent {
     private val createWarpGroup: CreateWarpGroup by inject()
-    private val chatInputService: ChatInputService by inject()
 
     override fun open() {
-        chatInputService.prompt(
+        TextInputMenu(
             player,
             localizationProvider.get(player.uniqueId, LocalizationKeys.MENU_WARP_GROUP_CREATE_TITLE),
-            onInput = { name -> create(name) },
+            localizationProvider,
+            onSubmit = { name -> create(name) },
             onCancel = { menuNavigator.goBack() }
-        )
+        ).open()
     }
 
     private fun create(name: String) {
