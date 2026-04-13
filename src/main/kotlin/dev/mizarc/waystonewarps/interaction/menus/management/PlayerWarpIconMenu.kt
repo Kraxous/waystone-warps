@@ -3,7 +3,7 @@ package dev.mizarc.waystonewarps.interaction.menus.management
 import IconMeta
 import com.destroystokyo.paper.profile.ProfileProperty
 import com.github.stefvanschie.inventoryframework.gui.GuiItem
-import com.github.stefvanschie.inventoryframework.gui.type.FurnaceGui
+import com.github.stefvanschie.inventoryframework.gui.type.ChestGui
 import com.github.stefvanschie.inventoryframework.pane.StaticPane
 import dev.mizarc.waystonewarps.application.actions.management.GetPlayerWarpIcon
 import dev.mizarc.waystonewarps.application.actions.management.RemovePlayerWarpIcon
@@ -31,7 +31,6 @@ import org.bukkit.inventory.meta.PotionMeta
 import org.bukkit.inventory.meta.SkullMeta
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
-import kotlin.concurrent.thread
 
 class PlayerWarpIconMenu(
     private val player: Player,
@@ -46,57 +45,55 @@ class PlayerWarpIconMenu(
     @Suppress("UnstableApiUsage")
     override fun open() {
         val title = localizationProvider.get(player.uniqueId, LocalizationKeys.MENU_PLAYER_WARP_ICON_TITLE)
-        val gui = FurnaceGui(title)
+        val gui = ChestGui(3, title)
         gui.setOnTopClick { it.isCancelled = true }
+        var selectedIcon: ItemStack? = null
 
         val existingOverride = getPlayerWarpIcon.execute(player.uniqueId, warp.id)
+        val pane = StaticPane(0, 0, 9, 3)
 
-        // Fuel slot: Reset button (if override exists) or info paper
-        val fuelPane = StaticPane(0, 0, 1, 1)
         if (existingOverride != null) {
             val resetItem = ItemStack(Material.valueOf(existingOverride.icon))
                 .applyIconMeta(existingOverride.iconMeta)
                 .name(localizationProvider.get(player.uniqueId, LocalizationKeys.MENU_PLAYER_WARP_ICON_RESET_NAME), PrimaryColourPalette.CANCELLED.color!!)
                 .lore(localizationProvider.get(player.uniqueId, LocalizationKeys.MENU_PLAYER_WARP_ICON_RESET_LORE))
-            fuelPane.addItem(GuiItem(resetItem) { guiEvent ->
+            pane.addItem(GuiItem(resetItem) { guiEvent ->
                 guiEvent.isCancelled = true
                 removePlayerWarpIcon.execute(player.uniqueId, warp.id)
                 menuNavigator.goBack()
-            }, 0, 0)
+            }, 0, 1)
         } else {
             val paperItem = ItemStack(Material.PAPER)
                 .name(localizationProvider.get(player.uniqueId, LocalizationKeys.MENU_PLAYER_WARP_ICON_INFO_NAME), PrimaryColourPalette.INFO.color!!)
                 .lore(localizationProvider.get(player.uniqueId, LocalizationKeys.MENU_PLAYER_WARP_ICON_INFO_LORE))
-            fuelPane.addItem(GuiItem(paperItem) { it.isCancelled = true }, 0, 0)
+            pane.addItem(GuiItem(paperItem) { it.isCancelled = true }, 0, 1)
         }
-        gui.fuelComponent.addPane(fuelPane)
 
-        // Input slot: player places their chosen item here
-        val inputPane = StaticPane(0, 0, 1, 1)
-        inputPane.setOnClick { guiEvent ->
+        val inputPlaceholder = ItemStack(Material.GRAY_STAINED_GLASS_PANE)
+            .name(localizationProvider.get(player.uniqueId, LocalizationKeys.MENU_PLAYER_WARP_ICON_INFO_NAME), PrimaryColourPalette.INFO.color!!)
+        pane.addItem(GuiItem(inputPlaceholder) { guiEvent ->
             guiEvent.isCancelled = true
             val itemOnCursor = guiEvent.cursor
             if (itemOnCursor.type == Material.AIR) {
-                inputPane.removeItem(0, 0)
+                selectedIcon = null
+                pane.removeItem(4, 1)
+                pane.addItem(GuiItem(inputPlaceholder), 4, 1)
                 gui.update()
-                return@setOnClick
+                return@GuiItem
             }
-            inputPane.addItem(GuiItem(ItemStack(itemOnCursor.clone())), 0, 0)
+            selectedIcon = itemOnCursor.clone()
+            val displayItem = itemOnCursor.clone()
+            displayItem.amount = 1
+            pane.removeItem(4, 1)
+            pane.addItem(GuiItem(displayItem) { it.isCancelled = true }, 4, 1)
             gui.update()
-            thread(start = true) {
-                Thread.sleep(1)
-                player.setItemOnCursor(itemOnCursor)
-            }
-        }
-        gui.ingredientComponent.addPane(inputPane)
+        }, 4, 1)
 
-        // Output slot: confirm
-        val outputPane = StaticPane(0, 0, 1, 1)
         val confirmItem = ItemStack(Material.NETHER_STAR)
             .name(localizationProvider.get(player.uniqueId, LocalizationKeys.MENU_COMMON_ITEM_CONFIRM_NAME), PrimaryColourPalette.SUCCESS.color!!)
         val confirmGuiItem = GuiItem(confirmItem) { guiEvent ->
             guiEvent.isCancelled = true
-            val newIcon = gui.ingredientComponent.getItem(0, 0)
+            val newIcon = selectedIcon
 
             if (newIcon != null) {
                 val registryAccess = RegistryAccess.registryAccess()
@@ -153,8 +150,8 @@ class PlayerWarpIconMenu(
 
             menuNavigator.goBack()
         }
-        outputPane.addItem(confirmGuiItem, 0, 0)
-        gui.outputComponent.addPane(outputPane)
+        pane.addItem(confirmGuiItem, 8, 1)
+        gui.addPane(pane)
         gui.show(player)
     }
 }

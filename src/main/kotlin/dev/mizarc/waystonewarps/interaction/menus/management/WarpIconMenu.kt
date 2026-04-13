@@ -3,7 +3,7 @@ package dev.mizarc.waystonewarps.interaction.menus.management
 import IconMeta
 import com.destroystokyo.paper.profile.ProfileProperty
 import com.github.stefvanschie.inventoryframework.gui.GuiItem
-import com.github.stefvanschie.inventoryframework.gui.type.FurnaceGui
+import com.github.stefvanschie.inventoryframework.gui.type.ChestGui
 import com.github.stefvanschie.inventoryframework.pane.StaticPane
 import dev.mizarc.waystonewarps.application.actions.management.UpdateWarpIcon
 import dev.mizarc.waystonewarps.domain.warps.Warp
@@ -29,7 +29,6 @@ import org.bukkit.inventory.meta.PotionMeta
 import org.bukkit.inventory.meta.SkullMeta
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
-import kotlin.concurrent.thread
 
 class WarpIconMenu(
     private val player: Player,
@@ -49,51 +48,47 @@ class WarpIconMenu(
         }
 
         val title = localizationProvider.get(player.uniqueId, LocalizationKeys.MENU_WARP_ICON_TITLE)
-        val gui = FurnaceGui(title)
+        val gui = ChestGui(3, title)
         gui.setOnTopClick { guiEvent -> guiEvent.isCancelled = true }
+        var selectedIcon: ItemStack? = null
 
-        val fuelPane = StaticPane(0, 0, 1, 1)
+        val pane = StaticPane(0, 0, 9, 3)
 
-        // Add info paper menu item
         val paperItem = ItemStack(Material.PAPER)
             .name(localizationProvider.get(player.uniqueId, LocalizationKeys.MENU_WARP_ICON_INFO_ITEM_NAME), PrimaryColourPalette.INFO.color!!)
             .lore(localizationProvider.get(player.uniqueId, LocalizationKeys.MENU_WARP_ICON_INFO_ITEM_LORE))
-        val guiIconEditorItem = GuiItem(paperItem) { guiEvent -> guiEvent.isCancelled = true }
-        fuelPane.addItem(guiIconEditorItem, 0, 0)
-        gui.fuelComponent.addPane(fuelPane)
+        pane.addItem(GuiItem(paperItem) { guiEvent -> guiEvent.isCancelled = true }, 0, 1)
 
-        // Allow item to be placed in the slot
-        val inputPane = StaticPane(0, 0, 1, 1)
-        inputPane.setOnClick {guiEvent ->
+        val inputPlaceholder = ItemStack(Material.GRAY_STAINED_GLASS_PANE)
+            .name(localizationProvider.get(player.uniqueId, LocalizationKeys.MENU_WARP_ICON_INFO_ITEM_NAME), PrimaryColourPalette.INFO.color)
+        pane.addItem(GuiItem(inputPlaceholder) { guiEvent ->
             guiEvent.isCancelled = true
             val itemOnCursor = guiEvent.cursor
 
             if (itemOnCursor.type == Material.AIR) {
-                inputPane.removeItem(0, 0)
+                selectedIcon = null
+                pane.removeItem(4, 1)
+                pane.addItem(GuiItem(inputPlaceholder), 4, 1)
                 gui.update()
-                return@setOnClick
+                return@GuiItem
             }
 
-            inputPane.addItem(GuiItem(ItemStack(itemOnCursor.clone())), 0, 0)
+            selectedIcon = itemOnCursor.clone()
+            val displayItem = itemOnCursor.clone()
+            displayItem.amount = 1
+            pane.removeItem(4, 1)
+            pane.addItem(GuiItem(displayItem) { it.isCancelled = true }, 4, 1)
             gui.update()
-            thread(start = true) {
-                Thread.sleep(1)
-                player.setItemOnCursor(itemOnCursor)
-            }
-        }
-        gui.ingredientComponent.addPane(inputPane)
+        }, 4, 1)
 
-        // Add confirm menu item
-        val outputPane = StaticPane(0, 0, 1, 1)
         val confirmItem = ItemStack(Material.NETHER_STAR)
             .name(localizationProvider.get(player.uniqueId, LocalizationKeys.MENU_COMMON_ITEM_CONFIRM_NAME),
                 PrimaryColourPalette.SUCCESS.color!!)
         val confirmGuiItem = GuiItem(confirmItem) { guiEvent ->
             guiEvent.isCancelled = true
-            val newIcon = gui.ingredientComponent.getItem(0, 0)
+            val newIcon = selectedIcon
             val registryAccess = RegistryAccess.registryAccess()
 
-            // Set icon if the item in slot
             if (newIcon != null) {
                 // Get potion type
                 val potionTypeKey = (newIcon.itemMeta as? PotionMeta)
@@ -170,7 +165,7 @@ class WarpIconMenu(
                     )
                 }
 
-                val result = updateWarpIcon.execute(
+                updateWarpIcon.execute(
                     editorPlayerId = player.uniqueId,
                     warpId = warp.id,
                     materialName = newIcon.type.name,
@@ -179,11 +174,10 @@ class WarpIconMenu(
                 )
             }
 
-            // Go back to edit menu
             menuNavigator.goBack()
         }
-        outputPane.addItem(confirmGuiItem, 0, 0)
-        gui.outputComponent.addPane(outputPane)
+        pane.addItem(confirmGuiItem, 8, 1)
+        gui.addPane(pane)
         gui.show(player)
     }
 }
